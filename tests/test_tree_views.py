@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from windows_mcp.tree.views import (
     BoundingBox,
     Center,
+    TextElementNode,
     TreeElementNode,
     TreeState,
 )
@@ -116,6 +117,26 @@ class TestTreeState:
         lines = result.split("\n")
         # base_index = 3 (three interactive nodes)
         assert lines[1].startswith("3|")
+
+    def test_informative_elements_to_string_empty(self):
+        ts = TreeState()
+        assert ts.informative_elements_to_string() == "No informative elements"
+
+    def test_informative_elements_to_string_with_elements(self):
+        ts = TreeState(
+            informative_nodes=[
+                TextElementNode(
+                    text="123",
+                    window_name="Calculator",
+                    control_type="Text",
+                    metadata={"has_focused": False},
+                )
+            ]
+        )
+        result = ts.informative_elements_to_string()
+        lines = result.split("\n")
+        assert lines[0] == "# window|control_type|text|metadata"
+        assert lines[1] == 'Calculator|Text|123|{"has_focused": false}'
 
 
 class TestTreeElementNode:

@@ -41,7 +41,17 @@ class Tree:
         else:
             windows_handles=other_windows_handles
         
-        interactive_nodes,scrollable_nodes,dom_informative_nodes,failed_handles=self.get_window_wise_nodes(windows_handles=windows_handles,active_window_flag=active_window_flag,use_dom=use_dom)
+        (
+            interactive_nodes,
+            scrollable_nodes,
+            informative_nodes,
+            dom_informative_nodes,
+            failed_handles,
+        ) = self.get_window_wise_nodes(
+            windows_handles=windows_handles,
+            active_window_flag=active_window_flag,
+            use_dom=use_dom,
+        )
         root_node=TreeElementNode(
             name="Desktop",
             control_type="PaneControl",
@@ -79,9 +89,17 @@ class Tree:
             logger.warning(f"[Tree] {len(failed_handles)} window(s) failed to capture — UI services may be loading")
         end_time = perf_counter()
         logger.debug(f"[Tree] Tree State capture took {end_time - start_time:.2f} seconds")
-        return TreeState(status=status,root_node=root_node,dom_node=dom_node,interactive_nodes=interactive_nodes,scrollable_nodes=scrollable_nodes,dom_informative_nodes=dom_informative_nodes)
+        return TreeState(
+            status=status,
+            root_node=root_node,
+            dom_node=dom_node,
+            interactive_nodes=interactive_nodes,
+            scrollable_nodes=scrollable_nodes,
+            informative_nodes=informative_nodes,
+            dom_informative_nodes=dom_informative_nodes,
+        )
 
-    def get_window_wise_nodes(self,windows_handles:list[int],active_window_flag:bool,use_dom:bool=False) -> tuple[list[TreeElementNode],list[ScrollElementNode],list[TextElementNode],list[int]]:
+    def get_window_wise_nodes(self,windows_handles:list[int],active_window_flag:bool,use_dom:bool=False) -> tuple[list[TreeElementNode],list[ScrollElementNode],list[TextElementNode],list[TextElementNode],list[int]]:
         """Process windows sequentially to avoid COM apartment threading deadlock.
 
         UI Automation requires STA (Single-Threaded Apartment). Using ThreadPoolExecutor
@@ -90,7 +108,7 @@ class Tree:
         COM operations (ControlFromHandle, is_window_browser). Sequential processing
         keeps all UIA COM calls in the main thread's STA.
         """
-        interactive_nodes, scrollable_nodes, dom_informative_nodes = [], [], []
+        interactive_nodes, scrollable_nodes, informative_nodes, dom_informative_nodes = [], [], [], []
         failed_handles = []
 
         task_inputs = []
@@ -111,10 +129,11 @@ class Tree:
                 try:
                     result = self.get_nodes(handle, is_browser, wait_time=0.5 * (2 ** (attempt - 1)) if attempt > 0 else 0, use_dom=use_dom)
                     if result:
-                        element_nodes, scroll_nodes, info_nodes = result
+                        element_nodes, scroll_nodes, info_nodes, dom_info_nodes = result
                         interactive_nodes.extend(element_nodes)
                         scrollable_nodes.extend(scroll_nodes)
-                        dom_informative_nodes.extend(info_nodes)
+                        informative_nodes.extend(info_nodes)
+                        dom_informative_nodes.extend(dom_info_nodes)
                     break
                 except Exception as e:
                     retry_counts[handle] = attempt + 1
@@ -135,7 +154,7 @@ class Tree:
                         failed_handles.append(handle)
                         break
 
-        return interactive_nodes, scrollable_nodes, dom_informative_nodes, failed_handles
+        return interactive_nodes, scrollable_nodes, informative_nodes, dom_informative_nodes, failed_handles
     
     def iou_bounding_box(self, window_box: Rect, element_box: Rect) -> BoundingBox:
         clipped = element_box.intersect(window_box).intersect(self.screen_box)
@@ -243,7 +262,8 @@ class Tree:
 
 
     def tree_traversal(self, node: Control, window_bounding_box:Rect, window_name:str, is_browser:bool, 
-                    interactive_nodes:Optional[list[TreeElementNode]]=None, scrollable_nodes:Optional[list[ScrollElementNode]]=None, 
+                    interactive_nodes:Optional[list[TreeElementNode]]=None, scrollable_nodes:Optional[list[ScrollElementNode]]=None,
+                    informative_nodes:Optional[list[TextElementNode]]=None,
                     dom_interactive_nodes:Optional[list[TreeElementNode]]=None, dom_informative_nodes:Optional[list[TextElementNode]]=None,
                     is_dom:bool=False, is_dialog:bool=False,
                     element_cache_req:Optional[Any]=None, children_cache_req:Optional[Any]=None):
@@ -487,7 +507,7 @@ class Tree:
                                 interactive_nodes.append(tree_node)
 
                     # Informative Check
-                    if dom_informative_nodes is not None:
+                    if informative_nodes is not None or dom_informative_nodes is not None:
                          # is_element_text check
                          is_text = False
                          if control_type_name in INFORMATIVE_CONTROL_TYPE_NAMES:
@@ -508,11 +528,18 @@ class Tree:
                                   is_text = True
                          
                          if is_text:
+                             name = node.CachedName
+                             text_node = TextElementNode(
+                                 text=name.strip(),
+                                 window_name=window_name,
+                                 control_type=node.CachedLocalizedControlType.title(),
+                                 metadata={"has_focused": node.CachedHasKeyboardFocus},
+                             )
                              if is_browser and is_dom:
-                                 name = node.CachedName
-                                 dom_informative_nodes.append(TextElementNode(
-                                     text=name.strip(),
-                                 ))
+                                 if dom_informative_nodes is not None:
+                                     dom_informative_nodes.append(text_node)
+                             elif informative_nodes is not None and text_node.text:
+                                 informative_nodes.append(text_node)
             
             # Phase 3: Cached Children Retrieval
             children = CachedControlHelper.get_cached_children(node, children_cache_req)
@@ -529,7 +556,7 @@ class Tree:
                     height=bounding_box.height())
                     self.dom=child
                     # enter DOM subtree
-                    self.tree_traversal(child, window_bounding_box, window_name, is_browser, interactive_nodes, scrollable_nodes, dom_interactive_nodes, dom_informative_nodes, is_dom=True, is_dialog=is_dialog, element_cache_req=element_cache_req, children_cache_req=children_cache_req)
+                    self.tree_traversal(child, window_bounding_box, window_name, is_browser, interactive_nodes, scrollable_nodes, informative_nodes, dom_interactive_nodes, dom_informative_nodes, is_dom=True, is_dialog=is_dialog, element_cache_req=element_cache_req, children_cache_req=children_cache_req)
                 # Check if the child is a dialog
                 elif isinstance(child,WindowControl):
                     if not child.CachedIsOffscreen:
@@ -549,10 +576,10 @@ class Tree:
                             if is_modal:
                                 interactive_nodes.clear()
                     # enter dialog subtree
-                    self.tree_traversal(child, window_bounding_box, window_name, is_browser, interactive_nodes, scrollable_nodes, dom_interactive_nodes, dom_informative_nodes, is_dom=is_dom, is_dialog=True, element_cache_req=element_cache_req, children_cache_req=children_cache_req)
+                    self.tree_traversal(child, window_bounding_box, window_name, is_browser, interactive_nodes, scrollable_nodes, informative_nodes, dom_interactive_nodes, dom_informative_nodes, is_dom=is_dom, is_dialog=True, element_cache_req=element_cache_req, children_cache_req=children_cache_req)
                 else:
                     # normal non-dialog children
-                    self.tree_traversal(child, window_bounding_box, window_name, is_browser, interactive_nodes, scrollable_nodes, dom_interactive_nodes, dom_informative_nodes, is_dom=is_dom, is_dialog=is_dialog, element_cache_req=element_cache_req, children_cache_req=children_cache_req)
+                    self.tree_traversal(child, window_bounding_box, window_name, is_browser, interactive_nodes, scrollable_nodes, informative_nodes, dom_interactive_nodes, dom_informative_nodes, is_dom=is_dom, is_dialog=is_dialog, element_cache_req=element_cache_req, children_cache_req=children_cache_req)
         except Exception as e:
             logger.error(f"Error in tree_traversal: {e}", exc_info=True)
             raise
@@ -568,7 +595,7 @@ class Tree:
             case _:
                 return window_name
     
-    def get_nodes(self, handle: int, is_browser:bool=False, wait_time:float=0, use_dom:bool=False) -> tuple[list[TreeElementNode],list[ScrollElementNode],list[TextElementNode]]:
+    def get_nodes(self, handle: int, is_browser:bool=False, wait_time:float=0, use_dom:bool=False) -> tuple[list[TreeElementNode],list[ScrollElementNode],list[TextElementNode],list[TextElementNode]]:
         if wait_time > 0:
             sleep(wait_time)
         try:
@@ -585,26 +612,27 @@ class Tree:
 
             window_bounding_box=node.BoundingRectangle
             
-            interactive_nodes, dom_interactive_nodes, dom_informative_nodes, scrollable_nodes = [], [], [], []
+            interactive_nodes, informative_nodes, dom_interactive_nodes, dom_informative_nodes, scrollable_nodes = [], [], [], [], []
             window_name=node.Name.strip()
             window_name=self.app_name_correction(window_name)
 
-            self.tree_traversal(node, window_bounding_box, window_name, is_browser, interactive_nodes, scrollable_nodes, dom_interactive_nodes, dom_informative_nodes, is_dom=False, is_dialog=False, element_cache_req=element_cache_req, children_cache_req=children_cache_req)
+            self.tree_traversal(node, window_bounding_box, window_name, is_browser, interactive_nodes, scrollable_nodes, informative_nodes, dom_interactive_nodes, dom_informative_nodes, is_dom=False, is_dialog=False, element_cache_req=element_cache_req, children_cache_req=children_cache_req)
             logger.debug(f'Window name:{window_name}')
             logger.debug(f'Interactive nodes:{len(interactive_nodes)}')
             if is_browser:
                 logger.debug(f'DOM interactive nodes:{len(dom_interactive_nodes)}')
                 logger.debug(f'DOM informative nodes:{len(dom_informative_nodes)}')
             logger.debug(f'Scrollable nodes:{len(scrollable_nodes)}')
+            logger.debug(f'Informative nodes:{len(informative_nodes)}')
 
             if use_dom:
                 if is_browser:
-                    return (dom_interactive_nodes, scrollable_nodes, dom_informative_nodes)
+                    return (dom_interactive_nodes, scrollable_nodes, [], dom_informative_nodes)
                 else:
-                    return ([], [], [])
+                    return ([], [], [], [])
             else:
                 interactive_nodes.extend(dom_interactive_nodes)
-                return (interactive_nodes,scrollable_nodes,dom_informative_nodes)
+                return (interactive_nodes,scrollable_nodes,informative_nodes,dom_informative_nodes)
         except Exception as e:
             logger.error(f"Error getting nodes for handle {handle}: {e}")
             raise

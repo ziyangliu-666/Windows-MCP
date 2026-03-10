@@ -46,6 +46,8 @@ _KEY_ALIASES = {
     "option": "Alt",
 }
 
+_URI_SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
+
 
 def _escape_text_for_sendkeys(text: str) -> str:
     """Escape special characters so uia.SendKeys types them correctly."""
@@ -71,6 +73,18 @@ class Desktop:
         self.encoding = getpreferredencoding()
         self.tree = Tree(self)
         self.desktop_state = None
+
+    @staticmethod
+    def _ps_quote(value: str) -> str:
+        return ps_quote(value)
+
+    @staticmethod
+    def _is_protocol_target(name: str) -> bool:
+        if not name:
+            return False
+        if re.match(r"^[a-zA-Z]:[\\\\/]", name):
+            return False
+        return _URI_SCHEME_RE.match(name) is not None
 
     def get_state(
         self,
@@ -175,11 +189,13 @@ class Desktop:
         else:
             screenshot = None
 
+        captured_at_epoch = time()
         self.desktop_state = DesktopState(
             active_window=active_window,
             windows=windows,
             active_desktop=active_desktop,
             all_desktops=all_desktops,
+            captured_at_epoch=captured_at_epoch,
             screenshot=screenshot,
             cursor_position=cursor_position,
             screenshot_size=screenshot_size,
@@ -191,6 +207,21 @@ class Desktop:
         end_time = time()
         logger.info(f"Desktop State capture took {end_time - start_time:.2f} seconds")
         return self.desktop_state
+
+    def desktop_state_age_seconds(self) -> float | None:
+        if self.desktop_state is None or self.desktop_state.captured_at_epoch is None:
+            return None
+        return max(0.0, time() - self.desktop_state.captured_at_epoch)
+
+    def require_fresh_desktop_state(self, max_age_seconds: float = 10.0):
+        if self.desktop_state is None:
+            raise ValueError("Desktop state is empty. Please call Snapshot first.")
+
+        age_seconds = self.desktop_state_age_seconds()
+        if age_seconds is not None and age_seconds > max_age_seconds:
+            raise ValueError(
+                f"Desktop state is {age_seconds:.1f}s old. Please call Snapshot again."
+            )
 
     def get_window_status(self, control: uia.Control) -> Status:
         if uia.IsIconic(control.NativeWindowHandle):
@@ -345,6 +376,66 @@ class Desktop:
         windows_dict = {window.name: window for window in windows}
         return process.extractOne(name, list(windows_dict.keys()), score_cutoff=60) is not None
 
+    def _collect_window_candidates(self) -> list[Window]:
+        windows, _ = self.get_windows()
+        active_window = self.get_active_window(windows=windows)
+        return [window for window in [active_window] + windows if window is not None]
+
+    def _wait_for_launched_window(
+        self,
+        before_handles: set[int],
+        before_active_handle: int | None,
+        expected_name: str,
+        pid: int = 0,
+        timeout: float = 10.0,
+        poll_interval: float = 0.25,
+    ) -> Window | None:
+        deadline = time() + timeout
+        while time() < deadline:
+            window_candidates = self._collect_window_candidates()
+
+            if pid > 0:
+                for window in window_candidates:
+                    if window.process_id == pid:
+                        return window
+
+            active_window = window_candidates[0] if window_candidates else None
+            if active_window is not None:
+                if active_window.handle not in before_handles:
+                    return active_window
+                if before_active_handle is not None and active_window.handle != before_active_handle:
+                    return active_window
+
+            new_windows = [
+                window for window in window_candidates if window.handle not in before_handles
+            ]
+            if new_windows:
+                return new_windows[0]
+
+            window_names = [window.name for window in window_candidates]
+            matched_window: tuple[str, float] | None = process.extractOne(
+                expected_name, window_names, score_cutoff=70
+            )
+            if matched_window is not None:
+                matched_name, _ = matched_window
+                for window in window_candidates:
+                    if window.name == matched_name:
+                        return window
+
+            sleep(poll_interval)
+
+        return None
+
+    def _wait_for_foreground_handle(
+        self, target_handle: int, timeout: float = 1.5, poll_interval: float = 0.1
+    ) -> bool:
+        deadline = time() + timeout
+        while time() < deadline:
+            if win32gui.GetForegroundWindow() == target_handle:
+                return True
+            sleep(poll_interval)
+        return False
+
     def app(
         self,
         mode: Literal["launch", "switch", "resize"],
@@ -354,26 +445,21 @@ class Desktop:
     ):
         match mode:
             case "launch":
+                window_candidates = self._collect_window_candidates()
+                before_handles = {window.handle for window in window_candidates}
+                before_active_handle = window_candidates[0].handle if window_candidates else None
                 response, status, pid = self.launch_app(name)
                 if status != 0:
                     return response
 
-                # Smart wait using UIA Exists (avoids manual Python loops)
-                launched = False
-                if pid > 0:
-                    if uia.WindowControl(ProcessId=pid).Exists(maxSearchSeconds=10):
-                        launched = True
-
-                if not launched:
-                    # Fallback: Regex search for the window title
-                    safe_name = re.escape(name)
-                    if uia.WindowControl(RegexName=f"(?i).*{safe_name}.*").Exists(
-                        maxSearchSeconds=10
-                    ):
-                        launched = True
-
-                if launched:
-                    return f"{name.title()} launched."
+                launched_window = self._wait_for_launched_window(
+                    before_handles=before_handles,
+                    before_active_handle=before_active_handle,
+                    expected_name=name,
+                    pid=pid,
+                )
+                if launched_window is not None:
+                    return f"{launched_window.name} launched."
                 return f"Launching {name.title()} sent, but window not detected yet."
             case "resize":
                 response, status = self.resize_app(size=size, loc=loc)
@@ -389,6 +475,12 @@ class Desktop:
                     return response
 
     def launch_app(self, name: str) -> tuple[str, int, int]:
+        if self._is_protocol_target(name):
+            safe = ps_quote(name)
+            command = f"Start-Process {safe}"
+            response, status = self.execute_command(command)
+            return response, status, 0
+
         apps_map = self.get_apps_from_start_menu()
         matched_app = process.extractOne(name, apps_map.keys(), score_cutoff=70)
         if matched_app is None:
@@ -446,11 +538,12 @@ class Desktop:
 
             if uia.IsIconic(target_handle):
                 uia.ShowWindow(target_handle, win32con.SW_RESTORE)
-                content = f"{window_name.title()} restored from Minimized state."
-            else:
-                self.bring_window_to_top(target_handle)
-                content = f"Switched to {window_name.title()} window."
-            return content, 0
+            self.bring_window_to_top(target_handle)
+            if not self._wait_for_foreground_handle(target_handle):
+                return (f"Failed to switch focus to {window_name.title()} window.", 1)
+            if uia.IsIconic(target_handle):
+                return (f"{window_name.title()} restored from Minimized state.", 0)
+            return (f"Switched to {window_name.title()} window.", 0)
         except Exception as e:
             return (f"Error switching app: {str(e)}", 1)
 
@@ -483,7 +576,12 @@ class Desktop:
 
             attached = False
             try:
-                win32process.AttachThreadInput(foreground_thread, target_thread, True)
+                try:
+                    win32process.AttachThreadInput(foreground_thread, target_thread, True)
+                except Exception as e:
+                    logger.warning("AttachThreadInput failed for handle %s: %s", target_handle, e)
+                    self._focus_window_fallback(target_handle)
+                    return
                 attached = True
 
                 win32gui.SetForegroundWindow(target_handle)
@@ -503,8 +601,29 @@ class Desktop:
                 if attached:
                     win32process.AttachThreadInput(foreground_thread, target_thread, False)
 
+            if win32gui.GetForegroundWindow() != target_handle:
+                self._focus_window_fallback(target_handle)
+
         except Exception as e:
             logger.exception(f"Failed to bring window to top: {e}")
+            self._focus_window_fallback(target_handle)
+
+    def _focus_window_fallback(self, target_handle: int):
+        try:
+            control = uia.ControlFromHandle(target_handle)
+            control.SetFocus()
+        except Exception:
+            pass
+
+        try:
+            win32gui.SetForegroundWindow(target_handle)
+        except Exception:
+            pass
+
+        try:
+            win32gui.BringWindowToTop(target_handle)
+        except Exception:
+            pass
 
     def get_coordinates_from_label(self, label: int) -> tuple[int, int]:
         tree_state = self.desktop_state.tree_state
@@ -1176,6 +1295,7 @@ class Desktop:
             dom_node=filtered_dom_node,
             interactive_nodes=filtered_interactive_nodes,
             scrollable_nodes=filtered_scrollable_nodes,
+            informative_nodes=tree_state.informative_nodes,
             dom_informative_nodes=tree_state.dom_informative_nodes if filtered_dom_node else [],
         )
 

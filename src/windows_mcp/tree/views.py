@@ -13,6 +13,7 @@ class TreeState:
     dom_node: "ScrollElementNode" | None = None
     interactive_nodes: list["TreeElementNode"] = field(default_factory=list)
     scrollable_nodes: list["ScrollElementNode"] = field(default_factory=list)
+    informative_nodes: list["TextElementNode"] = field(default_factory=list)
     dom_informative_nodes: list["TextElementNode"] = field(default_factory=list)
 
     def interactive_elements_to_string(self) -> str:
@@ -38,6 +39,25 @@ class TreeState:
             row = (
                 f"{base_index + idx}|{node.window_name}|{node.control_type}|{node.name}|"
                 f"{node.center.to_string()}|{json.dumps(node.metadata)}"
+            )
+            rows.append(row)
+        return "\n".join(rows)
+
+    def informative_elements_to_string(self) -> str:
+        if not self.informative_nodes:
+            return "No informative elements"
+        header = "# window|control_type|text|metadata"
+        rows = [header]
+        seen: set[tuple[str, str, str, str]] = set()
+        for node in self.informative_nodes:
+            metadata_json = json.dumps(node.metadata, sort_keys=True)
+            key = (node.window_name, node.control_type, node.text, metadata_json)
+            if key in seen:
+                continue
+            seen.add(key)
+            row = (
+                f"{node.window_name}|{node.control_type}|{node.text}|"
+                f"{metadata_json}"
             )
             rows.append(row)
         return "\n".join(rows)
@@ -140,6 +160,9 @@ class ScrollElementNode:
 @dataclass
 class TextElementNode:
     text: str
+    window_name: str = ""
+    control_type: str = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 ElementNode = TreeElementNode | ScrollElementNode | TextElementNode
