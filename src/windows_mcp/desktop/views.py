@@ -60,6 +60,7 @@ class DesktopState:
     all_desktops: list[dict]
     active_window: Window | None
     windows: list[Window]
+    captured_at_epoch: float | None = None
     screenshot: Image | None = None
     cursor_position: tuple[int, int] | None = None
     screenshot_size: Size | None = None
