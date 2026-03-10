@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="320" viewBox="0 0 980 320" fill="none">
+  <rect width="980" height="320" rx="20" fill="#F7F6F2"/>
+  <rect x="36" y="36" width="170" height="92" rx="16" fill="#1F3A5F"/>
+  <text x="121" y="73" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF">Codex in WSL</text>
+  <text x="121" y="102" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#D6E4F5">uses tools and edits code</text>
+
+  <rect x="246" y="36" width="210" height="92" rx="16" fill="#2F6B5A"/>
+  <text x="351" y="73" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF">windows-mcp</text>
+  <text x="351" y="102" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#D8F1E6">runs on Windows with --dev hot</text>
+
+  <rect x="498" y="36" width="190" height="92" rx="16" fill="#8E5A2B"/>
+  <text x="593" y="73" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF">Worker reload</text>
+  <text x="593" y="102" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#F7E6D6">code changes take effect fast</text>
+
+  <rect x="730" y="36" width="214" height="92" rx="16" fill="#7A2E3A"/>
+  <text x="837" y="73" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF">Real Windows</text>
+  <text x="837" y="102" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#F6D8DE">desktop state is the verdict</text>
+
+  <path d="M206 82H240" stroke="#39424E" stroke-width="4" stroke-linecap="round"/>
+  <path d="M232 70L246 82L232 94" stroke="#39424E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M456 82H492" stroke="#39424E" stroke-width="4" stroke-linecap="round"/>
+  <path d="M484 70L498 82L484 94" stroke="#39424E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M688 82H724" stroke="#39424E" stroke-width="4" stroke-linecap="round"/>
+  <path d="M716 70L730 82L716 94" stroke="#39424E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="118" y="208" width="744" height="72" rx="18" fill="#FFFFFF" stroke="#D8D2C7" stroke-width="2"/>
+  <text x="490" y="238" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#232323">Reproduce -> Patch -> Reload -> Rerun -> Verify</text>
+  <text x="490" y="265" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#555555">Only changes that improve real postconditions count as progress.</text>
+
+  <path d="M837 138C837 176 782 190 712 190H268C198 190 143 176 143 138" stroke="#39424E" stroke-width="4" stroke-linecap="round"/>
+  <path d="M155 148L143 134L131 148" stroke="#39424E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
