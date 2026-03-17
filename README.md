@@ -1,95 +1,158 @@
-# Windows-MCP Reliability Research Fork
+# Windows-MCP — Reliability Research Fork
 
-This repository is a research fork of [CursorTouch/Windows-MCP](https://github.com/CursorTouch/Windows-MCP), inspired by [karpathy/autoresearch](https://github.com/karpathy/autoresearch).
+> A research fork of [CursorTouch/Windows-MCP](https://github.com/CursorTouch/Windows-MCP), inspired by [karpathy/autoresearch](https://github.com/karpathy/autoresearch).
+> The agent runs real Windows tasks, finds where the MCP server breaks, patches it, hot-reloads it, and checks whether the actual desktop state improved.
 
-It is for one job: improve the real-world reliability of AI-driven Windows desktop automation.
+![Agent research loop](docs/agent-loop.svg)
 
-The agent uses the MCP server, edits the MCP server, hot reloads it locally, reruns the same workflow, and checks whether the real desktop behavior got better.
+---
 
-![Agent self-improvement loop](docs/agent-loop.png)
+## What this fork is for
 
-## What Makes This Fork Different
+The upstream project provides the MCP server. This fork adds one thing: **a closed loop where the agent improves the server it is currently using.**
 
-- local `--dev hot` support is part of the normal workflow
-- the same agent can patch the MCP code it is currently using
-- changes are judged by real postconditions, not tool success strings
-- `research/` exists to support benchmarks and handoff, not to collect random notes
+The agent does not get credit for a tool returning `"success"`. It gets credit when the foreground window really changed, the text really appeared, the file really exists. Every fix in this fork was driven by a documented failure on a real machine and verified by re-running the same task after the patch.
+
+---
+
+## What was hardened
+
+These are the concrete changes in this fork, each tied to a reproduced failure:
+
+| Area | What changed |
+|------|-------------|
+| **App.launch** | Verifies process/window state instead of matching the returned title against the requested app name. Fixes false-negative launches on localized Windows (e.g. `记事本` ≠ `Notepad`). |
+| **App.switch** | Reads the foreground handle after every switch attempt. Fails closed if focus did not change. Runs a UIA fallback before giving up. |
+| **Snapshot freshness** | Exposes native informative text (calculator display values, read-only labels). Rejects stale cached state after 10 seconds so label-based actions do not silently land in the wrong place. |
+| **Hot mode transport** | Replaced the internal HTTP worker bridge with a persistent stdio bridge. Long-running forwarded calls (e.g. `PowerShell Start-Sleep 8`) no longer hang at the 120-second host deadline. |
+| **Wait tool** | Moved `Wait` execution into the shell instead of forwarding it to the worker. Eliminates the class of timeout failures specific to long waits under hot mode. |
+| **DevServer diagnostics** | `health` and `reload` now return promptly. Added shell identity fields (`shell_source_hash`, `shell_restart_required`) so the agent can detect when a shell restart is needed versus a worker reload. |
+| **Browser DOM scrape** | Fixed `Scrape(use_dom=true)` crash: scroll metadata is read from the actual `ScrollElementNode.metadata`, not as a missing attribute. |
+| **Coordinate contract** | `Click`, `Type`, `Move`, and `Scroll` now accept both string (`"500,400"`) and list (`[500, 400]`) `loc` values. Eliminates schema mismatch failures from tool wrapper/server divergence. |
+| **Protocol launch** | `App(mode="launch", name="ms-settings:bluetooth")` works. Settings navigation prefers `ms-settings:*` deep links over fragile click-driven sidebar navigation. |
+| **Keyboard input** | Fixed `NameError: _INPUTUnion` in `uia/core.py` by adding an explicit import. Star-imports do not pull underscore-prefixed names. |
+
+---
+
+## Benchmark results
+
+All tasks below were run against a real Windows machine via the live MCP server, with pre/post state verification.
+
+| Task | Result |
+|------|--------|
+| Open Notepad, type text, verify character count | Pass |
+| Open Calculator, read result from Snapshot | Pass |
+| Clipboard copy/paste | Pass |
+| Create and rename a folder | Pass |
+| Open Explorer to a known path | Pass |
+| Switch between two apps (Notepad ↔ Calculator) | Pass |
+| Stale snapshot protection (label expired, retry succeeded) | Pass |
+| `Wait` under hot mode | Pass after shell restart |
+| Long-running PowerShell command under hot mode | Pass after transport fix |
+| `DevServer.health` response time | Pass after fast-path trim |
+| `DevServer.reload` with generation increment | Pass |
+| Browser DOM extraction (`Scrape(use_dom=true)`) | Pass after patch |
+| Mixed browser → desktop handoff | Pass with recovery |
+| Settings navigation via protocol URI | Pass |
+| Settings navigation via sidebar click | Fail (race condition, tracked) |
+| App switch from Chrome to Notepad | Pass after fallback patch |
+| App switch from Chrome to Calculator | Pass |
+| Download file and verify in Explorer | Pass |
+| Dynamic shell identity on stale shell | Pass |
+| `App.launch` with protocol target (`ms-settings:*`) | Pass |
+
+Full evidence is in [`research/results/`](./research/results/).
+
+---
 
 ## Setup
 
-Replace the placeholders with your own paths:
+**Requirements:** Python 3.13+, [`uv`](https://docs.astral.sh/uv/), Windows host (Win10/11), WSL for the agent side.
 
-- Windows repo path: `<windows-repo-path>`
-- WSL repo path: `<wsl-repo-path>`
-
-Windows host:
+### Windows host
 
 ```powershell
-git clone <your-fork-or-upstream-url> <windows-repo-path>
-cd <windows-repo-path>
+git clone <your-fork-url> C:\path\to\windows-mcp
+cd C:\path\to\windows-mcp
 uv sync
 uv run windows-mcp --dev hot
 ```
 
-WSL side:
+`--dev hot` starts the server with a hot-reloadable worker. The agent can patch source files and call `DevServer(mode="reload")` without restarting the host process.
+
+### WSL (agent side)
 
 ```bash
-cd <wsl-repo-path>
+cd /mnt/c/path/to/windows-mcp
 uv run pytest -q
 ```
 
-If Codex launches the MCP server itself:
+### MCP client config
+
+If your client (Codex, Claude, etc.) launches the MCP server itself:
 
 ```json
 {
   "command": "uv",
   "args": [
-    "--directory",
-    "<windows-repo-path>",
-    "run",
-    "windows-mcp",
-    "--dev",
-    "hot"
+    "--directory", "C:\\path\\to\\windows-mcp",
+    "run", "windows-mcp", "--dev", "hot"
   ]
 }
 ```
 
-If your client does not inherit `PATH` correctly, use an absolute executable path as a fallback.
+If the client does not inherit `PATH`, use the absolute path to the `uv` executable.
 
-## Hot Reload Loop
+---
 
-1. Reproduce one real failure.
-2. Patch the MCP code.
-3. Reload the worker.
-4. Rerun the workflow immediately.
-5. Verify the actual Windows state.
+## The research loop
 
-Good verification looks like:
+```
+1. Reproduce one real failure or run one benchmark.
+2. Record the exact observed behavior.
+3. Patch the narrowest cause.
+4. Add or update a regression test.
+5. Retest locally (uv run pytest -q).
+6. Retest live when the real MCP path changed.
+7. Update only the research files that need updating.
+```
 
-- the foreground window really changed
-- the text really appeared
-- the file really exists
-- the DOM really matches
-- the next step still works from the new state
+**Never claim success from a tool return string.** Check the actual Windows state:
 
-## Repo Guide
+- Is the right window in the foreground?
+- Does the text appear in the document?
+- Does the file exist at the expected path?
+- Does the DOM match what the browser shows?
 
-- `src/windows_mcp/`: server code
-- `tests/`: regression tests
-- `research/`: failures, benchmarks, result logs
-- `AGENTS.md`: agent rules for this fork
-- `CONTRIBUTING.md`: contributor workflow
+See [`AGENTS.md`](./AGENTS.md) for the full agent rules.
 
-The main `research/` files are:
+---
 
-- `failure_taxonomy.md`
-- `test_matrix.md`
-- `patches.md`
-- `next_session.md`
-- `results/*.md`
+## Repo structure
 
-See [research/README.md](./research/README.md).
+```
+src/windows_mcp/       MCP server source
+  uia/                 Win32/UIA automation layer
+  desktop/             Desktop state and snapshot
+  tree/                Browser DOM tree
+  dev_hot.py           Hot reload supervisor
+tests/                 Regression tests
+research/
+  failure_taxonomy.md  Confirmed failure classes with examples
+  test_matrix.md       Benchmark definitions and latest results
+  patches.md           Implemented and planned changes
+  next_session.md      Handoff for the next run
+  results/             Per-run evidence files
+```
+
+The `research/` folder is the audit trail. If a benchmark passes, the evidence is in `results/`. If a failure is classified, it is in `failure_taxonomy.md`. `next_session.md` is short and actionable, not a retrospective.
+
+---
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md).
+The best contributions improve real-world reliability: a reproduced bug with a patch and a live retest, a stronger postcondition check, or a benchmark that catches a known flaky path.
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the full workflow.
+
+**Safety note:** this server controls a real Windows desktop. Use a VM or a dedicated test machine when possible.

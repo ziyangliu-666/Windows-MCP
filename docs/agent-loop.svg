@@ -1,34 +1,85 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="980" height="320" viewBox="0 0 980 320" fill="none">
-  <rect width="980" height="320" rx="20" fill="#F7F6F2"/>
-  <rect x="36" y="36" width="170" height="92" rx="16" fill="#1F3A5F"/>
-  <text x="121" y="73" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF">Codex in WSL</text>
-  <text x="121" y="102" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#D6E4F5">uses tools and edits code</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="380" viewBox="0 0 960 380" fill="none">
+  <!-- Background -->
+  <rect width="960" height="380" rx="20" fill="#0F1117"/>
 
-  <rect x="246" y="36" width="210" height="92" rx="16" fill="#2F6B5A"/>
-  <text x="351" y="73" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF">windows-mcp</text>
-  <text x="351" y="102" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#D8F1E6">runs on Windows with --dev hot</text>
+  <!-- Step labels -->
+  <text x="480" y="38" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" font-weight="600" letter-spacing="3" fill="#555E6E" text-transform="uppercase">THE RESEARCH LOOP</text>
 
-  <rect x="498" y="36" width="190" height="92" rx="16" fill="#8E5A2B"/>
-  <text x="593" y="73" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF">Worker reload</text>
-  <text x="593" y="102" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#F7E6D6">code changes take effect fast</text>
+  <!-- Node 1: Reproduce -->
+  <rect x="32" y="64" width="168" height="100" rx="12" fill="#161B27" stroke="#1E2A42" stroke-width="1.5"/>
+  <text x="116" y="104" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="700" fill="#5B9EE8">① REPRODUCE</text>
+  <text x="116" y="126" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8090A8">Run a real task.</text>
+  <text x="116" y="144" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8090A8">Capture the failure.</text>
 
-  <rect x="730" y="36" width="214" height="92" rx="16" fill="#7A2E3A"/>
-  <text x="837" y="73" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF">Real Windows</text>
-  <text x="837" y="102" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#F6D8DE">desktop state is the verdict</text>
+  <!-- Arrow 1→2 -->
+  <path d="M200 114 L228 114" stroke="#2A3545" stroke-width="2" stroke-linecap="round"/>
+  <path d="M222 108 L230 114 L222 120" stroke="#2A3545" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 
-  <path d="M206 82H240" stroke="#39424E" stroke-width="4" stroke-linecap="round"/>
-  <path d="M232 70L246 82L232 94" stroke="#39424E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Node 2: Patch -->
+  <rect x="232" y="64" width="168" height="100" rx="12" fill="#161B27" stroke="#1E3028" stroke-width="1.5"/>
+  <text x="316" y="104" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="700" fill="#4DC99A">② PATCH</text>
+  <text x="316" y="126" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8090A8">Edit the MCP source.</text>
+  <text x="316" y="144" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8090A8">Narrowest cause only.</text>
 
-  <path d="M456 82H492" stroke="#39424E" stroke-width="4" stroke-linecap="round"/>
-  <path d="M484 70L498 82L484 94" stroke="#39424E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Arrow 2→3 -->
+  <path d="M400 114 L428 114" stroke="#2A3545" stroke-width="2" stroke-linecap="round"/>
+  <path d="M422 108 L430 114 L422 120" stroke="#2A3545" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 
-  <path d="M688 82H724" stroke="#39424E" stroke-width="4" stroke-linecap="round"/>
-  <path d="M716 70L730 82L716 94" stroke="#39424E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Node 3: Reload -->
+  <rect x="432" y="64" width="168" height="100" rx="12" fill="#161B27" stroke="#32291A" stroke-width="1.5"/>
+  <text x="516" y="104" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="700" fill="#E8A84C">③ RELOAD</text>
+  <text x="516" y="126" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8090A8">Hot-reload the worker.</text>
+  <text x="516" y="144" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8090A8">No restart needed.</text>
 
-  <rect x="118" y="208" width="744" height="72" rx="18" fill="#FFFFFF" stroke="#D8D2C7" stroke-width="2"/>
-  <text x="490" y="238" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#232323">Reproduce -> Patch -> Reload -> Rerun -> Verify</text>
-  <text x="490" y="265" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#555555">Only changes that improve real postconditions count as progress.</text>
+  <!-- Arrow 3→4 -->
+  <path d="M600 114 L628 114" stroke="#2A3545" stroke-width="2" stroke-linecap="round"/>
+  <path d="M622 108 L630 114 L622 120" stroke="#2A3545" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 
-  <path d="M837 138C837 176 782 190 712 190H268C198 190 143 176 143 138" stroke="#39424E" stroke-width="4" stroke-linecap="round"/>
-  <path d="M155 148L143 134L131 148" stroke="#39424E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Node 4: Verify -->
+  <rect x="632" y="64" width="168" height="100" rx="12" fill="#161B27" stroke="#2D1A1E" stroke-width="1.5"/>
+  <text x="716" y="104" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="700" fill="#E86B7A">④ VERIFY</text>
+  <text x="716" y="126" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8090A8">Check real desktop state.</text>
+  <text x="716" y="144" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8090A8">Postconditions only.</text>
+
+  <!-- Feedback arc -->
+  <path d="M716 164 C716 210 600 228 516 228 C432 228 316 228 232 228 C148 228 116 210 116 164"
+        stroke="#2A3545" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round" fill="none"/>
+  <path d="M124 170 L116 162 L108 170" stroke="#2A3545" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="480" y="222" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" fill="#3A4555">loop until postconditions pass</text>
+
+  <!-- Divider -->
+  <line x1="48" y1="272" x2="912" y2="272" stroke="#1A2030" stroke-width="1"/>
+
+  <!-- Architecture row -->
+  <text x="480" y="302" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" font-weight="600" letter-spacing="2" fill="#555E6E">ARCHITECTURE</text>
+
+  <!-- WSL box -->
+  <rect x="48" y="316" width="188" height="48" rx="8" fill="#161B27" stroke="#1E2A42" stroke-width="1.5"/>
+  <text x="142" y="336" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" font-weight="700" fill="#5B9EE8">Agent (WSL)</text>
+  <text x="142" y="353" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" fill="#4A5568">uses tools · edits source</text>
+
+  <!-- MCP arrow -->
+  <path d="M236 340 L278 340" stroke="#2A3545" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M274 335 L280 340 L274 345" stroke="#2A3545" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="258" y="332" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" fill="#3A4555">MCP</text>
+
+  <!-- windows-mcp box -->
+  <rect x="280" y="316" width="200" height="48" rx="8" fill="#161B27" stroke="#1E3028" stroke-width="1.5"/>
+  <text x="380" y="336" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" font-weight="700" fill="#4DC99A">windows-mcp</text>
+  <text x="380" y="353" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" fill="#4A5568">--dev hot · stdio bridge</text>
+
+  <!-- Win32 arrow -->
+  <path d="M480 340 L522 340" stroke="#2A3545" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M518 335 L524 340 L518 345" stroke="#2A3545" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="501" y="332" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" fill="#3A4555">Win32/UIA</text>
+
+  <!-- Windows box -->
+  <rect x="524" y="316" width="200" height="48" rx="8" fill="#161B27" stroke="#2D1A1E" stroke-width="1.5"/>
+  <text x="624" y="336" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" font-weight="700" fill="#E86B7A">Windows Desktop</text>
+  <text x="624" y="353" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" fill="#4A5568">real state · real verdict</text>
+
+  <!-- Benchmark badge -->
+  <rect x="748" y="316" width="164" height="48" rx="8" fill="#0D1F0D" stroke="#1A3A1A" stroke-width="1.5"/>
+  <text x="830" y="334" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="700" fill="#4DC99A">20+ benchmarks</text>
+  <text x="830" y="352" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" fill="#4A5568">live-verified passes</text>
 </svg>
